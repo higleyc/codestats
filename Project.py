@@ -2,9 +2,6 @@ import urllib2
 
 EXTENSIONS_TO_ANALYZE = [".c", ".cpp", ".h", ".hpp"]
 CURLY_TRIGGERS = ["if", "while", "for", "switch"]
-CURLY_SAME = 0
-CURLY_NEXT = 1
-CURLY_OTHER = 2
 
 class Project:
     def __init__(self, github_project):
@@ -15,7 +12,12 @@ class Project:
         self.curly_same = 0
         self.curly_next = 0
         self.curly_other = 0
-    
+        self.paren_prec_space = 0
+        self.paren_no_prec_space = 0
+        self.whitespace_spaces = 0
+        self.whitespace_tabs = 0
+        self.nzero_line_count = 0
+        self.nzero_line_sum = 0
     
     def get_files(self):
         results = []
@@ -30,25 +32,42 @@ class Project:
     def get_file_contents(self, a_file):
         return urllib2.urlopen(a_file.raw_url).read()
     
-    def get_curly_style(self, line1, line2):
+    def record_curly_style(self, line1, line2):
         if line1[-1] == "{":
-            return CURLY_SAME
+            self.curly_same += 1
         elif len(line2) == 1 and line2[0] == "{":
-            return CURLY_NEXT
+            self.curl_next += 1
         else:
-            return CURLY_OTHER
+            self.curly_other += 1
+        
+    def record_paren_style(self, line):
+        for i in range(1, len(line)):
+            if line[i] == "(":
+                if line[i - 1] == " ":
+                    self.paren_prec_space += 1
+                else:
+                    self.paren_no_prec_space += 1
+    
+    def record_whitespace_style(self, line):
+        if len(line) > 0:
+            if line[0] == " ":
+                self.whitespace_spaces += 1
+            elif line[0] == "\t":
+                self.whitespace_tabs += 1
+    
+    def record_nzero_line_length(self, line):
+        if len(line) > 0:
+            self.nzero_line_count += 1
+            self.nzero_line_sum += len(line)
     
     def analyze_c_file(self, contents):
         lines = contents.split("\n")
         for i in range(len(lines)):
-            line = lines[i].strip()
+            line = lines[i]
             for trigger in CURLY_TRIGGERS:
-                if line.startswith(trigger):
-                    style = self.get_curly_style(line, lines[i + 1].strip())
-                    if style == CURLY_SAME:
-                        self.curly_same += 1
-                    elif style == CURLY_NEXT:
-                        self.curly_next += 1
-                    else:
-                        self.curly_other += 1
+                if line.strip().startswith(trigger):
+                    self.record_curly_style(line.strip(), lines[i + 1].strip())
                     break
+            self.record_paren_style(line.strip())
+            self.record_whitespace_style(line)
+            self.record_nzero_line_length(line.strip())
