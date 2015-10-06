@@ -1,4 +1,5 @@
 import urllib2
+import time
 
 EXTENSIONS_TO_ANALYZE = [".c", ".cpp", ".h", ".hpp"]
 CURLY_TRIGGERS = ["if", "while", "for", "switch"]
@@ -18,7 +19,15 @@ class Project:
         self.whitespace_tabs = 0
         self.nzero_line_count = 0
         self.nzero_line_sum = 0
-    
+        self.nzero_line_max = 0
+        
+    def generate_stats(self):
+        self.url = self.github_project.url
+        self.accessed_time = time.time()
+        files = self.get_files()
+        for a_file in files:
+            self.analyze_c_file(self.get_file_contents(a_file))
+          
     def get_files(self):
         results = []
         for a_file in self.github_project.get_branch("master").commit.files:
@@ -36,7 +45,7 @@ class Project:
         if line1[-1] == "{":
             self.curly_same += 1
         elif len(line2) == 1 and line2[0] == "{":
-            self.curl_next += 1
+            self.curly_next += 1
         else:
             self.curly_other += 1
         
@@ -59,6 +68,8 @@ class Project:
         if len(line) > 0:
             self.nzero_line_count += 1
             self.nzero_line_sum += len(line)
+            if len(line) > self.nzero_line_max:
+                self.nzero_line_max = len(line)
     
     def analyze_c_file(self, contents):
         lines = contents.split("\n")
